@@ -22,7 +22,7 @@ GROUPS = {
     "other": "Other experiments: 4MOST, JPAS, PTA"
 }
 
-def map_papers_to_groups(papers_file, output_file, threshold=0.3, model_name='all-MiniLM-L6-v2'):
+def map_papers_to_groups(papers_file, output_file, threshold=0.3, model_name='all-MiniLM-L12-v2'):
     """
     Maps papers to predefined groups based on semantic similarity of their abstracts.
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument("papers_file", type=str, help="Path to the input JSON file (e.g., 'papers_abstracts.json').")
     parser.add_argument("output_file", type=str, help="Path to the output JSON file (e.g., 'papers_mapped.json').")
     parser.add_argument("--threshold", type=float, default=0.3, help="Cosine similarity threshold for a match (default: 0.3).")
-    parser.add_argument("--model", type=str, default='all-MiniLM-L6-v2', help="The sentence-transformer model to use (default: 'all-MiniLM-L6-v2').")
+    parser.add_argument("--model", type=str, default='all-MiniLM-L12-v2', help="The sentence-transformer model to use (default: 'all-MiniLM-L12-v2').")
 
     args = parser.parse_args()
 
