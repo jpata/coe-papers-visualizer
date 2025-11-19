@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Organization Graph</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 1. Cytoscape Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+    
+    <!-- 2. WebCola (Physics Engine) -->
+    <script src="https://unpkg.com/webcola/WebCola/cola.min.js"></script>
+    
+    <!-- 3. Cytoscape-Cola Adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-cola@2.5.1/cytoscape-cola.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; overflow: hidden; }
+        #cy {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        .controls {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            padding: 0.5rem;
+            border-radius: 9999px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+        .controls button {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #334155;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            background-color: transparent;
+        }
+        .controls button:hover {
+            color: #0c4a6e;
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+        .controls button.active {
+            color: #1e40af;
+            background-color: #e0e7ff;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="cy"></div>
+
+    <div class="controls">
+        <button id="toggle-live">Enable Live Layout</button>
+        <button id="toggle-papers">Show Papers</button>
+        <button onclick="resetView()">Reset View</button>
+    </div>
+
+    <script>
+        // --- Content Definitions ---
+        const content = {
+            // Top
+            top1: "Theoretical\nparticle physics",
+            top2: "Gravitational wave\nphenomenology",
+            top3: "Gravitational\ntheory",
+            // Left
+            left1: "Experimental\nparticle physics",
+            left2: "Hardware\ndevelopment",
+            // Right
+            right1: "Cosmology &\nastrophysics",
+            right2: "Astronomy",
+            // Bottom
+            bot1: "CMS Tier 2\nComputing (ETAIS)",
+            bot2: "Computational\nmethods",
+            bot3: "Quantum info\n& computing",
+            // Center
+            cern: "CERN exp.:\nLHC, CMS,\nWLCG, ...",
+            esa: "ESA exp.:\nLISA, ...",
+            other: "Other exp.:\n4MOST, JPAS,\nPTA, ..."
+        };
+
+        const elements = [
+            { data: { id: 'hub' } },
+            { data: { id: 'hardware', parent: 'hub' } },
+            { data: { id: 'computing', parent: 'hub' } },
+            { data: { id: 'theory', parent: 'hub' } },
+            { data: { id: 'astrophysics', parent: 'hub' } },
+            { data: { id: 'experiments', parent: 'hub' } },
+            // Inner
+            { data: { id: 'cern', parent: 'experiments', label: content.cern } },
+            { data: { id: 'esa',  parent: 'experiments', label: content.esa } },
+            { data: { id: 'other', parent: 'experiments', label: content.other } },
+            // Top
+            { data: { id: 't1', parent: 'theory', label: content.top1 } },
+            { data: { id: 't2', parent: 'theory', label: content.top2 } },
+            { data: { id: 't3', parent: 'theory', label: content.top3 } },
+            // Bottom
+            { data: { id: 'b1', parent: 'computing', label: content.bot1 } },
+            { data: { id: 'b2', parent: 'computing', label: content.bot2 } },
+            { data: { id: 'b3', parent: 'computing', label: content.bot3 } },
+            // Sides
+            { data: { id: 'l1', parent: 'hardware', label: content.left1 } },
+            { data: { id: 'l2', parent: 'hardware', label: content.left2 } },
+            { data: { id: 'r1', parent: 'astrophysics', label: content.right1 } },
+            { data: { id: 'r2', parent: 'astrophysics', label: content.right2 } },
+            // Edges
+            { data: { source: 't1', target: 'experiments' } },
+            { data: { source: 't2', target: 'experiments' } },
+            { data: { source: 't3', target: 'experiments' } },
+            { data: { source: 'b1', target: 'experiments' } },
+            { data: { source: 'b2', target: 'experiments' } },
+            { data: { source: 'b3', target: 'experiments' } },
+            { data: { source: 'l1', target: 'experiments' } },
+            { data: { source: 'l2', target: 'experiments' } },
+            { data: { source: 'r1', target: 'experiments' } },
+            { data: { source: 'r2', target: 'experiments' } }
+        ];
+
+        // --- Layout Options ---
+        const staticLayoutOptions = {
+            name: 'cola',
+            animate: true,
+            fit: true,
+            maxSimulationTime: 4000,
+            centerGraph: true, // Ensure the graph is centered
+            constraints: [ // Fix 'hub' node at the center
+                {
+                    node: 'hub',
+                    x: 0,
+                    y: 0,
+                    type: 'fixed'
+                }
+            ]
+        };
+
+        const liveLayoutOptions = {
+            name: 'cola',
+            animate: true,
+            infinite: true,
+            fit: false,
+            centerGraph: true, // Ensure the graph is centered
+            constraints: [ // Fix 'hub' node at the center
+                {
+                    node: 'hub',
+                    x: 0,
+                    y: 0,
+                    type: 'fixed'
+                }
+            ]
+        };
+
+        // --- Initialization ---
+        var cy = window.cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: elements,
+            autounselectify: true,
+            
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#FFFFFF',
+                        'border-color': '#E2E8F0',
+                        'border-width': 2,
+                        'shape': 'ellipse',
+                        'label': 'data(label)',
+                        'text-wrap': 'wrap',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'font-family': 'Inter',
+                        'font-size': '13px',
+                        'font-weight': 500,
+                        'color': '#475569'
+                    }
+                },
+                {
+                    selector: 'node:child',
+                    style: {
+                        'width': 100,
+                        'height': 100,
+                        'padding': 15
+                    }
+                },
+                {
+                    selector: '#hub',
+                    style: {
+                        'background-color': '#FFEDD5', // Light Orange
+                        'border-color': '#FDBA74', // Darker Orange
+                        'border-width': 4, // Increased border width
+                        'shape': 'round-rectangle', // Changed shape
+                        'padding': 30, // Increased padding
+                        'font-size': '24px', // Increased font size
+                        'font-weight': 'bold',
+                        'color': '#9A3412',
+                        'text-valign': 'top', // Center vertically for round-rectangle
+                        'text-halign': 'center'
+                    }
+                },
+                {
+                    selector: '#hardware, #computing, #theory, #astrophysics, #experiments',
+                    style: {
+                        'border-width': 2,
+                        'padding': 20,
+                        'font-size': '14px', // Smaller font size for nested groups
+                        'font-weight': 'normal', // Normal font weight
+                        'text-valign': 'top',
+                        'text-halign': 'center'
+                    }
+                },
+                {
+                    selector: '#hardware',
+                    style: {
+                        'background-color': '#D4F7E6', // Light Green
+                        'border-color': '#6EE7B7', // Darker Green
+                        'color': '#065F46' // Even Darker Green for text
+                    }
+                },
+                {
+                    selector: '#computing',
+                    style: {
+                        'background-color': '#F0E7F5', // Light Purple
+                        'border-color': '#C084FC', // Darker Purple
+                        'color': '#5B21B6' // Even Darker Purple for text
+                    }
+                },
+                {
+                    selector: '#theory',
+                    style: {
+                        'background-color': '#D6E4FF', // Light Blue
+                        'border-color': '#A5B4FC', // Darker Blue
+                        'color': '#1E3A8A' // Even Darker Blue for text
+                    }
+                },
+                {
+                    selector: '#astrophysics',
+                    style: {
+                        'background-color': '#FEEAFA', // Light Pink
+                        'border-color': '#F472B6', // Darker Pink
+                        'color': '#BE185D' // Even Darker Pink for text
+                    }
+                },
+                {
+                    selector: '#cern, #esa, #other',
+                    style: {
+                        'background-color': '#FEFED5', // Light Yellow
+                        'border-color': '#FDE68A'
+                    }
+                },
+                {
+                    selector: '#experiments',
+                    style: {
+                        'background-color': '#FEFED5', // Light Yellow
+                        'border-color': '#FDE68A'
+                    }
+                },
+                {
+                    selector: '#t1, #t2, #t3', // Theory
+                    style: {
+                        'background-color': '#D6E4FF', // Light Blue
+                        'border-color': '#A5B4FC'
+                    }
+                },
+                {
+                    selector: '#l1, #l2', // Experiment/Hardware
+                    style: {
+                        'background-color': '#D4F7E6', // Light Green
+                        'border-color': '#6EE7B7'
+                    }
+                },
+                {
+                    selector: '#r1, #r2', // Astro
+                    style: {
+                        'background-color': '#FEEAFA', // Light Pink
+                        'border-color': '#F472B6'
+                    }
+                },
+                {
+                    selector: '#b1, #b2, #b3', // Computing
+                    style: {
+                        'background-color': '#F0E7F5', // Light Purple
+                        'border-color': '#C084FC'
+                    }
+                },
+                {
+                    selector: 'node:parent',
+                    style: {
+                      'background-opacity': 0.5,
+                      'border-style': 'dashed'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2,
+                        'line-color': '#CBD5E1',
+                        'target-arrow-color': '#CBD5E1',
+                        'target-arrow-shape': 'triangle',
+                        'source-arrow-color': '#CBD5E1',
+                        'source-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'arrow-scale': 1.2
+                    }
+                },
+                {
+                    selector: '.paper',
+                    style: {
+                        'border-color': '#94A3B8',
+                        'border-width': 1,
+                        'shape': 'ellipse',
+                        'width': 20,
+                        'height': 20,
+                        'label': '',
+                        'z-compound-depth': -1,
+                    }
+                },
+                {
+                    selector: '.paper-edge',
+                    style: {
+                        'width': 1,
+                        'line-color': '#E2E8F0',
+                        'target-arrow-shape': 'none',
+                        'source-arrow-shape': 'none',
+                    }
+                },
+                {
+                    selector: ':active',
+                    style: {
+                        'border-color': '#60A5FA',
+                        'border-width': 2,
+                        'overlay-opacity': 0
+                    }
+                }
+            ]
+        });
+
+        cy.on('click', 'node.paper', function(evt){
+            var doi = evt.target.id();
+            window.open('https://doi.org/' + doi, '_blank');
+        });
+
+        // --- Paper Loading ---
+        async function loadPapers() {
+            try {
+                const response = await fetch('papers_mapped.json');
+                if (!response.ok) {
+                    console.error('Failed to load papers_mapped.json');
+                    return;
+                }
+                const papersByGroup = await response.json();
+                
+                const paperNodeElements = [];
+                const edgeElements = [];
+                const addedPapers = new Set();
+                const papersToGroups = {};
+
+                const groupColors = { // Using border colors for better contrast
+                    't1': '#A5B4FC', 't2': '#A5B4FC', 't3': '#A5B4FC',
+                    'l1': '#6EE7B7', 'l2': '#6EE7B7',
+                    'r1': '#F472B6', 'r2': '#F472B6',
+                    'b1': '#C084FC', 'b2': '#C084FC', 'b3': '#C084FC',
+                    'cern': '#FDE68A', 'esa': '#FDE68A', 'other': '#FDE68A'
+                };
+
+                // 1. First, build papersToGroups map and create element definitions
+                for (const [groupId, dois] of Object.entries(papersByGroup)) {
+                    if (cy.getElementById(groupId).length === 0) {
+                        console.warn(`Group node '${groupId}' not found in graph. Skipping papers for this group.`);
+                        continue;
+                    }
+
+                    dois.forEach(doi => {
+                        if (!papersToGroups[doi]) {
+                            papersToGroups[doi] = [];
+                        }
+                        papersToGroups[doi].push(groupId);
+
+                        if (!addedPapers.has(doi)) {
+                            paperNodeElements.push({
+                                group: 'nodes',
+                                data: { id: doi, label: doi.substring(0, 7) + '...' },
+                                classes: 'paper'
+                            });
+                            addedPapers.add(doi);
+                        }
+                        
+                        edgeElements.push({
+                            group: 'edges',
+                            data: { id: `${doi}->${groupId}`, source: doi, target: groupId },
+                            classes: 'paper-edge'
+                        });
+                    });
+                }
+                
+                // 2. Calculate initial positions for the paper nodes before adding them
+                const groupPaperCounters = {}; // Tracks the angle for papers around a single group
+                paperNodeElements.forEach(paperElement => {
+                    const doi = paperElement.data.id;
+                    const groups = papersToGroups[doi];
+                    let position;
+
+                    if (groups && groups.length === 1) {
+                        const groupId = groups[0];
+                        const groupNode = cy.getElementById(groupId);
+                        const groupPos = groupNode.position();
+                        const totalInGroup = papersByGroup[groupId].length;
+                        const counter = groupPaperCounters[groupId] || 0;
+                        const angle = (counter / totalInGroup) * 2 * Math.PI;
+                        const radius = 150 + Math.random() * 30; // Add some jitter for a more organic look
+
+                        position = {
+                            x: groupPos.x + radius * Math.cos(angle),
+                            y: groupPos.y + radius * Math.sin(angle)
+                        };
+                        groupPaperCounters[groupId] = counter + 1;
+
+                    } else if (groups && groups.length > 1) {
+                        // Paper in multiple groups: position it at the centroid of its groups.
+                        let avgPos = { x: 0, y: 0 };
+                        let count = 0;
+                        groups.forEach(gId => {
+                            const gNode = cy.getElementById(gId);
+                            if (gNode.length > 0) {
+                                const pos = gNode.position();
+                                avgPos.x += pos.x;
+                                avgPos.y += pos.y;
+                                count++;
+                            }
+                        });
+                        if (count > 0) {
+                            position = {
+                                x: avgPos.x / count,
+                                y: avgPos.y / count
+                            };
+                        }
+                    }
+                    paperElement.position = position;
+                });
+
+                const newElements = [...paperNodeElements, ...edgeElements];
+
+                if (newElements.length > 0) {
+                    cy.add(newElements);
+
+                    // 3. --- Style paper nodes based on groups ---
+                    for (const [doi, groups] of Object.entries(papersToGroups)) {
+                        const paperNode = cy.getElementById(doi);
+                        const numGroups = groups.length;
+
+                        if (numGroups === 1) {
+                            const color = groupColors[groups[0]] || '#CBD5E1';
+                            paperNode.style({
+                                'background-color': color,
+                                'border-color': color
+                            });
+                        } else if (numGroups > 1) {
+                            const pieStyle = {};
+                            const sliceSize = 100 / numGroups;
+                            groups.forEach((group, i) => {
+                                pieStyle[`pie-${i + 1}-background-color`] = groupColors[group] || '#CBD5E1';
+                                pieStyle[`pie-${i + 1}-background-size`] = sliceSize;
+                            });
+                            paperNode.style(pieStyle);
+                            paperNode.style('border-width', 0); // Remove border for pie charts
+                        }
+                    }
+
+
+                    if (!papersVisible) { // Hide papers if initially not visible
+                        cy.elements('.paper, .paper-edge').hide();
+                    }
+                    // Re-run layout to include new nodes
+                    runLayout(liveLayoutOptions);
+                    console.log(`Added ${addedPapers.size} paper nodes and their connections.`);
+                }
+
+            } catch (error) {
+                console.error('Error loading or processing paper data:', error);
+            }
+        }
+
+
+        // --- Layout Management ---
+        let currentLayout;
+
+        function runLayout(options) {
+            if (currentLayout) {
+                currentLayout.stop();
+            }
+            currentLayout = cy.layout(options);
+            currentLayout.run();
+            return currentLayout; // Return the layout object
+        }
+
+        let liveEnabled = false;
+        const toggleBtn = document.getElementById('toggle-live');
+        const togglePapersBtn = document.getElementById('toggle-papers');
+
+        // Run initial static layout to precompute positions
+        const initialLayout = runLayout(staticLayoutOptions);
+
+        // Listen for the initial static layout to stop, then transition to live mode
+        initialLayout.on('layoutstop', function() {
+            if (!liveEnabled) { // Ensure this only runs if not already in live mode via user interaction
+                liveEnabled = true;
+                runLayout(liveLayoutOptions);
+                toggleBtn.textContent = 'Disable Live Layout';
+                toggleBtn.classList.add('active');
+            }
+            // Load papers after initial layout is done
+            loadPapers();
+        });
+
+        // Event listener for the live layout toggle button
+        toggleBtn.addEventListener('click', function(){
+            liveEnabled = !liveEnabled;
+            if (liveEnabled) {
+                runLayout(liveLayoutOptions);
+                toggleBtn.textContent = 'Disable Live Layout';
+                toggleBtn.classList.add('active');
+            } else {
+                runLayout(staticLayoutOptions);
+                toggleBtn.textContent = 'Enable Live Layout';
+                toggleBtn.classList.remove('active');
+            }
+        });
+
+        // Event listener for the papers toggle button
+        let papersVisible = false;
+        togglePapersBtn.addEventListener('click', function() {
+            papersVisible = !papersVisible;
+            const papers = cy.elements('.paper, .paper-edge');
+            if (papersVisible) {
+                papers.show();
+                togglePapersBtn.textContent = 'Hide Papers';
+            } else {
+                papers.hide();
+                togglePapersBtn.textContent = 'Show Papers';
+            }
+        });
+
+        function resetView() {
+            cy.fit();
+        }
+
+
+        window.addEventListener('resize', function() {
+            cy.resize();
+            cy.center();
+        });
+
+    </script>
+</body>
+</html>
