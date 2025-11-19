@@ -64,8 +64,9 @@
 
     <div id="cy"></div>
 
+    <div id="tooltip" style="position: absolute; top: 0; left: 0; display: none; padding: 5px 10px; background: rgba(0,0,0,0.8); color: white; border-radius: 6px; font-size: 14px; font-weight: 500; z-index: 1001; pointer-events: none; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2);"></div>
+
     <div class="controls">
-        <button id="toggle-live">Enable Live Layout</button>
         <button id="toggle-papers">Show Papers</button>
         <button onclick="resetView()">Reset View</button>
     </div>
@@ -352,6 +353,38 @@
             window.open('https://doi.org/' + doi, '_blank');
         });
 
+        // --- Tooltip on Hover ---
+        const tooltip = document.getElementById('tooltip');
+        let hoveredNode = null;
+
+        function updateTooltipPosition() {
+            if (!hoveredNode) return;
+            const pos = hoveredNode.renderedPosition();
+            // Position tooltip to the top-right of the cursor/node
+            tooltip.style.transform = `translate(${pos.x + 10}px, ${pos.y - 28}px)`;
+        }
+
+        cy.on('pan zoom', updateTooltipPosition);
+
+        cy.on('mouseover', 'node.paper', function(evt) {
+            hoveredNode = evt.target;
+            const doi = hoveredNode.id();
+            tooltip.innerHTML = `DOI: ${doi}`;
+            tooltip.style.display = 'block';
+            
+            updateTooltipPosition();
+            
+            hoveredNode.on('position', updateTooltipPosition);
+        });
+
+        cy.on('mouseout', 'node.paper', function(evt) {
+            tooltip.style.display = 'none';
+            if(hoveredNode) {
+                hoveredNode.off('position', updateTooltipPosition);
+                hoveredNode = null;
+            }
+        });
+
         // --- Paper Loading ---
         async function loadPapers() {
             try {
@@ -505,8 +538,6 @@
             return currentLayout; // Return the layout object
         }
 
-        let liveEnabled = false;
-        const toggleBtn = document.getElementById('toggle-live');
         const togglePapersBtn = document.getElementById('toggle-papers');
 
         // Run initial static layout to precompute positions
@@ -514,28 +545,9 @@
 
         // Listen for the initial static layout to stop, then transition to live mode
         initialLayout.on('layoutstop', function() {
-            if (!liveEnabled) { // Ensure this only runs if not already in live mode via user interaction
-                liveEnabled = true;
-                runLayout(liveLayoutOptions);
-                toggleBtn.textContent = 'Disable Live Layout';
-                toggleBtn.classList.add('active');
-            }
+            runLayout(liveLayoutOptions); // Always run live layout
             // Load papers after initial layout is done
             loadPapers();
-        });
-
-        // Event listener for the live layout toggle button
-        toggleBtn.addEventListener('click', function(){
-            liveEnabled = !liveEnabled;
-            if (liveEnabled) {
-                runLayout(liveLayoutOptions);
-                toggleBtn.textContent = 'Disable Live Layout';
-                toggleBtn.classList.add('active');
-            } else {
-                runLayout(staticLayoutOptions);
-                toggleBtn.textContent = 'Enable Live Layout';
-                toggleBtn.classList.remove('active');
-            }
         });
 
         // Event listener for the papers toggle button
