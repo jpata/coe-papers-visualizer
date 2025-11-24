@@ -17,7 +17,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; overflow: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #FFFFFF; overflow: hidden; }
         #cy {
             width: 100vw;
             height: 100vh;
@@ -183,7 +183,7 @@
                         'text-valign': 'center',
                         'text-halign': 'center',
                         'font-family': 'Inter',
-                        'font-size': '13px',
+                        'font-size': '18px',
                         'font-weight': 500,
                         'color': '#475569'
                     }
@@ -204,7 +204,7 @@
                         'border-width': 4, // Increased border width
                         'shape': 'round-rectangle', // Changed shape
                         'padding': 30, // Increased padding
-                        'font-size': '24px', // Increased font size
+                        'font-size': '32px', // Increased font size
                         'font-weight': 'bold',
                         'color': '#9A3412',
                         'text-valign': 'top', // Center vertically for round-rectangle
@@ -216,7 +216,7 @@
                     style: {
                         'border-width': 2,
                         'padding': 20,
-                        'font-size': '14px', // Smaller font size for nested groups
+                        'font-size': '20px',
                         'font-weight': 'normal', // Normal font weight
                         'text-valign': 'top',
                         'text-halign': 'center'
@@ -326,6 +326,7 @@
                         'height': 20,
                         'label': '',
                         'z-compound-depth': -1,
+                        'cursor': 'pointer'
                     }
                 },
                 {
@@ -364,26 +365,30 @@
             tooltip.style.transform = `translate(${pos.x + 10}px, ${pos.y - 28}px)`;
         }
 
-        cy.on('pan zoom', updateTooltipPosition);
+        // Only attach mouseover/mouseout events if it's not a touch device
+        if (!('ontouchstart' in window)) {
+            cy.on('pan zoom', updateTooltipPosition);
 
-        cy.on('mouseover', 'node.paper', function(evt) {
-            hoveredNode = evt.target;
-            const doi = hoveredNode.id();
-            tooltip.innerHTML = `DOI: ${doi}`;
-            tooltip.style.display = 'block';
-            
-            updateTooltipPosition();
-            
-            hoveredNode.on('position', updateTooltipPosition);
-        });
+            cy.on('mouseover', 'node.paper', function(evt) {
+                hoveredNode = evt.target;
+                const doi = hoveredNode.id();
+                tooltip.innerHTML = `DOI: ${doi}`;
+                tooltip.style.display = 'block';
+                
+                updateTooltipPosition();
+                
+                hoveredNode.on('position', updateTooltipPosition);
+            });
 
-        cy.on('mouseout', 'node.paper', function(evt) {
-            tooltip.style.display = 'none';
-            if(hoveredNode) {
-                hoveredNode.off('position', updateTooltipPosition);
-                hoveredNode = null;
-            }
-        });
+            cy.on('mouseout', 'node.paper', function(evt) {
+                tooltip.style.display = 'none';
+                if(hoveredNode) {
+                    hoveredNode.off('position', updateTooltipPosition);
+                    hoveredNode = null;
+                }
+            });
+        }
+
 
         // --- Paper Loading ---
         async function loadPapers() {
