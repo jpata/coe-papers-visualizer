@@ -191,9 +191,9 @@
                 {
                     selector: 'node:child',
                     style: {
-                        'width': 100,
-                        'height': 100,
-                        'padding': 15
+                        'width': 150,
+                        'height': 150,
+                        'padding': 20
                     }
                 },
                 {
@@ -215,7 +215,7 @@
                     selector: '#hardware, #computing, #theory, #astrophysics, #experiments',
                     style: {
                         'border-width': 2,
-                        'padding': 20,
+                        'padding': 30,
                         'font-size': '20px',
                         'font-weight': 'normal', // Normal font weight
                         'text-valign': 'top',
@@ -349,7 +349,7 @@
             ]
         });
 
-        cy.on('click', 'node.paper', function(evt){
+        cy.on('tap', 'node.paper', function(evt){
             var doi = evt.target.id();
             window.open('https://doi.org/' + doi, '_blank');
         });
